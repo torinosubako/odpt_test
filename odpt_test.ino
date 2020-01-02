@@ -14,6 +14,7 @@ const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainIn
 const String odpt_line_name = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 const String api_key = //Your API Key//;
 
+
 const int sleeping_time = 30;
 
 void setup() {
@@ -35,6 +36,8 @@ void setup() {
   delay(1500);
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/401.jpg");
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, LOW);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   delay(1500);
   
   
@@ -48,12 +51,14 @@ void setup() {
   Serial.println("初期リンクを確立しました");
   Serial.println("Connected to the WiFi network");
 }
- 
+
+
 void loop() {
   WiFi.begin(ssid, password);
-  delay(1000);
+
+  delay(2000);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(3000);
+    delay(2000);
     Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/404.jpg");
@@ -131,13 +136,12 @@ void loop() {
     }
     http.end(); //リソースを解放
   }
+  //esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   Serial.println("Wi-Fi modem in sleep!");
   Serial.println("System in sleep!");
   WiFi.mode(WIFI_OFF);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, LOW);
   //esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   esp_light_sleep_start();
   //esp_deep_sleep(sleeping_time * 1000000LL);
   //delay(300000);   //300秒おきに更新
- 
 }
