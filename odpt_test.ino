@@ -14,7 +14,7 @@ const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainIn
 const String odpt_line_name = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 const String api_key = //Your API Key//;
 
-const int sleeping_time = 300;
+const int sleeping_time = 30;
 
 void setup() {
  
@@ -26,15 +26,17 @@ void setup() {
   M5.Lcd.setTextColor(WHITE);
   //String font = "genshin-regular-20pt"; // without Ext
   //M5.Lcd.loadFont(font, SD);
+  esp_sleep_enable_timer_wakeup(sleeping_time * 1000000LL);
 
   //起動画面
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/400.jpg");
   WiFi.begin(ssid, password);
-  delay(2500);
+  delay(1500);
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/401.jpg");
-  delay(2500);
+  delay(1500);
+  
   
   while (WiFi.status() != WL_CONNECTED) {
     delay(10000);
@@ -127,12 +129,15 @@ void loop() {
       M5.Lcd.clear(BLACK);
       M5.Lcd.drawJpgFile(SD, "/404.jpg");
     }
- 
     http.end(); //リソースを解放
   }
   Serial.println("Wi-Fi modem in sleep!");
+  Serial.println("System in sleep!");
   WiFi.mode(WIFI_OFF);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, LOW);
+  //esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+  esp_light_sleep_start();
   //esp_deep_sleep(sleeping_time * 1000000LL);
-  delay(300000);   //300秒おきに更新
+  //delay(300000);   //300秒おきに更新
  
 }
