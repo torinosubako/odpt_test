@@ -2,20 +2,20 @@
 #include <WiFi.h>
 #include "ArduinoJson.h"
 #include <HTTPClient.h>
+#include <driver/rtc_io.h>
 #include <esp_deep_sleep.h>
 
+//ネットワーク設定
 const char *ssid = //Your Network SSID//;
-  const char *password = //Your Network PW//;
+const char *password = //Your Network PW//;
 
-    const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
-//const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
-//const String odpt_line_Rinkai = "odpt:railway=odpt.Railway:TWR.Rinkai";
-//const String odpt_line_Yamanote = "odpt:railway=odpt.Railway:JR-East.Yamanote";
+//東京公共交通オープンデータチャレンジ向け各種設定
+const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
 const String odpt_line_name = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 const String api_key = //Your API Key//;
 
-  //更新時間設定(秒)
-  const int sleeping_time = 300;
+//更新時間設定(秒)
+const int sleeping_time = 300;
 
 
 void setup() {
@@ -51,25 +51,21 @@ void setup() {
   delay(1500);
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/401.jpg");
-  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, LOW);
-  //esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   delay(1500);
 
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(10000);
     Serial.println("初期リンクを確立しています");
-    Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/404.jpg");
   }
   Serial.println("初期リンクを確立しました");
-  Serial.println("Connected to the WiFi network");
 }
 
 
 void loop() {
-  Serial.println("システム定期起動ルーチン開始");
+  Serial.println("システム定期ルーチン開始");
   WiFi.begin(ssid, password);
 
   delay(2000);
@@ -153,13 +149,10 @@ void loop() {
     }
     http.end(); //リソースを解放
   }
-
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   delay(2000);
-  Serial.println("システム定期起動ルーチン終了");
+  Serial.println("システム定期ルーチン終了");
   Serial.println("System in sleep!");
   WiFi.mode(WIFI_OFF);
-  esp_light_sleep_start();
-  //esp_deep_sleep(sleeping_time * 1000000LL);
-  //delay(300000);   //300秒おきに更新
+  esp_light_sleep_start();//上部で設定した秒数おきにLight_sleep解除、定期ルーチン開始
 }
