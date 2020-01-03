@@ -3,30 +3,45 @@
 #include "ArduinoJson.h"
 #include <HTTPClient.h>
 #include <esp_deep_sleep.h>
- 
-const char *ssid = //Your Network SSID//;
-const char *password = //Your Network PW//;
 
-const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
+const char *ssid = //Your Network SSID//;
+  const char *password = //Your Network PW//;
+
+    const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
 //const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 //const String odpt_line_Rinkai = "odpt:railway=odpt.Railway:TWR.Rinkai";
 //const String odpt_line_Yamanote = "odpt:railway=odpt.Railway:JR-East.Yamanote";
 const String odpt_line_name = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 const String api_key = //Your API Key//;
 
+  //更新時間設定(秒)
+  const int sleeping_time = 300;
 
-const int sleeping_time = 300;
 
 void setup() {
-
+  //  初期設定
   Serial.begin(115200);
   M5.begin();
   M5.Lcd.clear();
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextColor(WHITE);
+  //  フォント設定（未使用）
   //String font = "genshin-regular-20pt"; // without Ext
   //M5.Lcd.loadFont(font, SD);
+
+  //省電力設定用
+  ledcDetachPin(GPIO_NUM_32);
+
+  rtc_gpio_set_level(GPIO_NUM_32, 1);
+  rtc_gpio_set_direction(GPIO_NUM_32, RTC_GPIO_MODE_OUTPUT_ONLY);
+  rtc_gpio_init(GPIO_NUM_32);
+
+  rtc_gpio_set_level(GPIO_NUM_33, 1);
+  rtc_gpio_set_direction(GPIO_NUM_33, RTC_GPIO_MODE_OUTPUT_ONLY);
+  rtc_gpio_init(GPIO_NUM_33);
+
+  M5.Power.setPowerBoostKeepOn(true);
   esp_sleep_enable_timer_wakeup(sleeping_time * 1000000LL);
 
   //起動画面
@@ -56,6 +71,7 @@ void setup() {
 void loop() {
   Serial.println("システム定期起動ルーチン開始");
   WiFi.begin(ssid, password);
+
   delay(2000);
   while (WiFi.status() != WL_CONNECTED) {
     delay(2000);
@@ -137,6 +153,7 @@ void loop() {
     }
     http.end(); //リソースを解放
   }
+
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   delay(2000);
   Serial.println("システム定期起動ルーチン終了");
