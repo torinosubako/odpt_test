@@ -133,7 +133,7 @@ void loop() {
       } else if (point2 == NULL) {
         //取得時間外？
         M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/000.jpg");
+        M5.Lcd.drawJpgFile(SD, "/402.jpg");
         Serial.println("取得時間外?");
       } else {
         M5.Lcd.clear(BLACK);
