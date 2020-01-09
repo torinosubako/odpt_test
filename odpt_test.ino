@@ -9,23 +9,68 @@
 const char *ssid = //Your Network SSID//;
 const char *password = //Your Network PW//;
 
+//API設定
+const String api_key = //Your API Key//;
+
 //東京公共交通オープンデータチャレンジ向け各種設定
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
-const String odpt_line_name = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
-const String api_key = //Your API Key//;
+const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
+const String odpt_line_KeihinTohoku = "odpt.Railway:JR-East.KeihinTohokuNegishi";
+const String odpt_line_Yamanote = "odpt:railway=odpt.Railway:JR-East.Yamanote";
+const String odpt_line_Rinkai = "odpt:railway=odpt.Railway:TWR.Rinkai";
+String odpt_line_name = "";
+
+
+//基幹情報
+String file_header_base = "";
+//00X系
+String header_saikyo = "/00";
+//01X系
+String header_KeihinTohoku = "/01";
+//02X系
+String header_Yamanote = "/02";
+//03X系
+//const String header_KeihinTohoku = "/XX";
+
 
 //更新時間設定(秒)
 const int sleeping_time = 300;
 
 
 void setup() {
-  //  初期設定
+  //初期設定
   Serial.begin(115200);
   M5.begin();
   M5.Lcd.clear();
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextColor(WHITE);
+
+  //初期路線設定
+  const String line_name = "埼京線" ;
+
+  //　路線設定論理
+  if (line_name == "埼京線") {
+    //　埼京・川越線
+    odpt_line_name = odpt_line_saikyo;
+    file_header_base = header_saikyo;
+    Serial.println("路線設定:埼京線");
+  } else if (line_name == "京浜東北線") {
+    //　京浜東北線
+    odpt_line_name = odpt_line_KeihinTohoku;
+    file_header_base = header_KeihinTohoku;
+    Serial.println("路線設定:京浜東北線");
+  } else if (line_name == "山手線") {
+    //  山手線
+    odpt_line_name = odpt_line_Yamanote;
+    file_header_base = header_Yamanote;
+    Serial.println("路線設定:山手線");
+  } else {
+    odpt_line_name = odpt_line_saikyo;
+    file_header_base = header_saikyo;
+    Serial.println("路線設定:初期値(埼京線)に設定しました");
+  }
+
   //  フォント設定（未使用）
   //String font = "genshin-regular-20pt"; // without Ext
   //M5.Lcd.loadFont(font, SD);
@@ -66,6 +111,7 @@ void setup() {
 
 void loop() {
   Serial.println("システム定期ルーチン開始");
+  String file_header = file_header_base;
   WiFi.begin(ssid, password);
 
   delay(2000);
@@ -112,24 +158,30 @@ void loop() {
       //Serial.println(deta);
       if (point1 == "Service on schedule") {
         //　平常運転
+        file_header.concat("1.jpg");
+        Serial.println(file_header);
         M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/001.jpg");
+        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
       } else if (point2 == "Notice") {
         //　情報有り
+        file_header.concat("2.jpg");
         M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/002.jpg");
+        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
       } else if (point2 == "Delay") {
         //　遅れあり
+        file_header.concat("3.jpg");
         M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/003.jpg");
+        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
       } else if (point2 == "Operation suspended") {
         //　運転見合わせ
+        file_header.concat("4.jpg");
         M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/004.jpg");
+        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
       } else if (point2 == "Direct operation cancellation") {
         //　直通運転中止
+        file_header.concat("5.jpg");
         M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/005.jpg");
+        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
       } else if (point2 == NULL) {
         //取得時間外？
         M5.Lcd.clear(BLACK);
@@ -147,6 +199,7 @@ void loop() {
       M5.Lcd.clear(BLACK);
       M5.Lcd.drawJpgFile(SD, "/404.jpg");
     }
+
     http.end(); //リソースを解放
   }
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
