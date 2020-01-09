@@ -15,10 +15,12 @@ const String api_key = //Your API Key//;
 //東京公共交通オープンデータチャレンジ向け各種設定
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
 const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
-const String odpt_line_KeihinTohoku = "odpt.Railway:JR-East.KeihinTohokuNegishi";
-const String odpt_line_Yamanote = "odpt:railway=odpt.Railway:JR-East.Yamanote";
+const String odpt_line_KeihinTohoku = "odpt:railway=odpt.Railway:JR-East.KeihinTohokuNegishi";
+const String odpt_line_Yamanote = "odpt:railway=odpt:railway=odpt.Railway:JR-East.Yamanote";
 const String odpt_line_Rinkai = "odpt:railway=odpt.Railway:TWR.Rinkai";
 String odpt_line_name = "";
+
+
 
 
 //基幹情報
@@ -47,7 +49,7 @@ void setup() {
   M5.Lcd.setTextColor(WHITE);
 
   //初期路線設定
-  const String line_name = "埼京線" ;
+  const String line_name = "京浜東北線" ;
 
   //　路線設定論理
   if (line_name == "埼京線") {
@@ -127,6 +129,8 @@ void loop() {
 
     HTTPClient http;
 
+    
+
     http.begin(base_url + odpt_line_name + api_key); //URLを指定
     //http.begin(url); //URLを指定
     int httpCode = http.GET();  //GETリクエストを送信
@@ -134,6 +138,7 @@ void loop() {
     if (httpCode > 0) { //返答がある場合
       Serial.println("データリンク成功");
       String payload = http.getString();  //返答（JSON形式）を取得
+      Serial.println(base_url + odpt_line_name + api_key);
       Serial.println(httpCode);
       Serial.println(payload);
 
