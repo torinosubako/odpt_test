@@ -4,54 +4,67 @@
 #include <HTTPClient.h>
 #include <driver/rtc_io.h>
 #include <esp_deep_sleep.h>
-
-//ネットワーク設定
+ 
 const char *ssid = //Your Network SSID//;
-const char *password = //Your Network PW//;
+const char *password = //Your Network Password//;
 
 //API設定
-const String api_key = //Your API Key//;
+const String api_key = "&acl:consumerKey="//Your API Key//;;
 
-//東京公共交通オープンデータチャレンジ向け各種設定
+//東京公共交通オープンデータチャレンジ向け共通基盤情報
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
-const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
-const String odpt_line_KeihinTohoku = "odpt:railway=odpt.Railway:JR-East.KeihinTohokuNegishi";
-const String odpt_line_Yamanote = "odpt:railway=odpt:railway=odpt.Railway:JR-East.Yamanote";
-const String odpt_line_Rinkai = "odpt:railway=odpt.Railway:TWR.Rinkai";
+String file_header_base = "";
 String odpt_line_name = "";
 
 
-
-
-//基幹情報
-String file_header_base = "";
-//00X系
+//路線別基盤的情報
+//埼京・川越線(画像系統:00X系)
+const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 String header_saikyo = "/00";
-//01X系
+//京浜東北線(画像系統:01X系)
+const String odpt_line_KeihinTohoku = "odpt:railway=odpt.Railway:JR-East.KeihinTohokuNegishi";
 String header_KeihinTohoku = "/01";
-//02X系
+//山手線(画像系統:02X系)
+const String odpt_line_Yamanote = "odpt:railway=odpt.Railway:JR-East.Yamanote";
 String header_Yamanote = "/02";
-//03X系
-//const String header_KeihinTohoku = "/XX";
+//湘南新宿ライン(画像系統:03X系)
+const String odpt_line_ShonanShinjuku = "odpt:railway=odpt.Railway:JR-East.ShonanShinjuku";
+String header_ShonanShinjuku = "/03";
+//ここに適時追加
+
 
 
 //更新時間設定(秒)
 const int sleeping_time = 300;
 
+//ボタン設定関連
+//ポインター
+unsigned int pointer = 0;
+//イメージポインター
+unsigned int image_pointer = 0;
+String image_header = "/menu/";
+//Aボタン
+unsigned int Return_Btn;
+//Bボタン
+unsigned int Decision_Btn;
+//Cボタン
+unsigned int Proceed_Btn;
+
 
 void setup() {
   //初期設定
   Serial.begin(115200);
+  M5.update();
   M5.begin();
   M5.Lcd.clear();
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextColor(WHITE);
 
-  //初期路線設定
-  const String line_name = "京浜東北線" ;
+  //初期路線設定(廃止予定)
+  const String line_name = "埼京線" ;
 
-  //　路線設定論理
+  //　路線設定論理(廃止予定)
   if (line_name == "埼京線") {
     //　埼京・川越線
     odpt_line_name = odpt_line_saikyo;
@@ -77,17 +90,14 @@ void setup() {
   //String font = "genshin-regular-20pt"; // without Ext
   //M5.Lcd.loadFont(font, SD);
 
-  //省電力設定用
+  //スリープ設定
   ledcDetachPin(GPIO_NUM_32);
-
   rtc_gpio_set_level(GPIO_NUM_32, 1);
   rtc_gpio_set_direction(GPIO_NUM_32, RTC_GPIO_MODE_OUTPUT_ONLY);
   rtc_gpio_init(GPIO_NUM_32);
-
   rtc_gpio_set_level(GPIO_NUM_33, 1);
   rtc_gpio_set_direction(GPIO_NUM_33, RTC_GPIO_MODE_OUTPUT_ONLY);
   rtc_gpio_init(GPIO_NUM_33);
-
   M5.Power.setPowerBoostKeepOn(true);
   esp_sleep_enable_timer_wakeup(sleeping_time * 1000000LL);
 
@@ -95,12 +105,20 @@ void setup() {
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/400.jpg");
   WiFi.begin(ssid, password);
-  delay(1500);
+  delay(1000);
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/401.jpg");
-  delay(1500);
+  delay(1000);
+
+  //ボタン処理
+  //M5.Lcd.drawJpgFile(SD, "/401.jpg");
+  
+  //file_header.concat(".jpg");
+  //M5.Lcd.clear(BLACK);
+  //M5.Lcd.drawJpgFile(SD, String(file_header).c_str(
 
 
+  //無線接続試験
   while (WiFi.status() != WL_CONNECTED) {
     delay(10000);
     Serial.println("初期リンクを確立しています");
