@@ -1,23 +1,31 @@
 #include <M5Stack.h>
+#include <Ambient.h>
 #include <WiFi.h>
-#include "ArduinoJson.h"
 #include <HTTPClient.h>
 #include <driver/rtc_io.h>
 #include <esp_deep_sleep.h>
- 
+#include "Adafruit_Sensor.h"
+#include "Adafruit_AM2320.h"
+#include "ArduinoJson.h"
+WiFiClient client;
+Ambient ambient;
+
+//Wi-Fi設定用基盤情報
 const char *ssid = //Your Network SSID//;
 const char *password = //Your Network Password//;
 
-//API設定
-const String api_key = "&acl:consumerKey="//Your API Key//;;
+//環境センサAmbient連携用基盤情報
+unsigned int channelId = //Your Ambient Channel ID//; // AmbientのチャネルID
+const char* writeKey = //Your Ambient Write key//; // ライトキー
+Adafruit_AM2320 am2320 = Adafruit_AM2320();
 
 //東京公共交通オープンデータチャレンジ向け共通基盤情報
+const String api_key = "&acl:consumerKey="//Your API Key//;
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
 String file_header_base = "";
 String odpt_line_name = "";
 
-
-//路線別基盤的情報
+//東京公共交通オープンデータチャレンジ向路線別基盤情報
 //埼京・川越線(画像系統:00X系)
 const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
 String header_saikyo = "/00";
@@ -32,34 +40,20 @@ const String odpt_line_ShonanShinjuku = "odpt:railway=odpt.Railway:JR-East.Shona
 String header_ShonanShinjuku = "/03";
 //ここに適時追加
 
-
-
 //更新時間設定(秒)
-const int sleeping_time = 300;
-
-//ボタン設定関連
-//ポインター
-unsigned int pointer = 0;
-//イメージポインター
-unsigned int image_pointer = 0;
-String image_header = "/menu/";
-//Aボタン
-unsigned int Return_Btn;
-//Bボタン
-unsigned int Decision_Btn;
-//Cボタン
-unsigned int Proceed_Btn;
-
+//const int sleeping_time = 20;
+const int sleeping_time = 290;
 
 void setup() {
-  //初期設定
-  Serial.begin(115200);
-  M5.update();
   M5.begin();
   M5.Lcd.clear();
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextColor(WHITE);
+  Serial.begin(9600);
+  while (!Serial) {
+    delay(10); // hang out until serial port opens
+  }
 
   //初期路線設定(廃止予定)
   const String line_name = "埼京線" ;
@@ -86,10 +80,6 @@ void setup() {
     Serial.println("路線設定:初期値(埼京線)に設定しました");
   }
 
-  //  フォント設定（未使用）
-  //String font = "genshin-regular-20pt"; // without Ext
-  //M5.Lcd.loadFont(font, SD);
-
   //スリープ設定
   ledcDetachPin(GPIO_NUM_32);
   rtc_gpio_set_level(GPIO_NUM_32, 1);
@@ -109,32 +99,30 @@ void setup() {
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/401.jpg");
   delay(1000);
-
-  //ボタン処理
-  //M5.Lcd.drawJpgFile(SD, "/401.jpg");
   
-  //file_header.concat(".jpg");
-  //M5.Lcd.clear(BLACK);
-  //M5.Lcd.drawJpgFile(SD, String(file_header).c_str(
-
-
   //無線接続試験
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(10000);
-    Serial.println("初期リンクを確立しています");
+  WiFi.begin(ssid, password);
+  while(WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/404.jpg");
   }
   Serial.println("初期リンクを確立しました");
-}
+  Serial.println(WiFi.localIP());
+  ambient.begin(channelId, writeKey, &client);
 
+  //環境センサ用設定
+  am2320.begin();
+}
 
 void loop() {
   Serial.println("システム定期ルーチン開始");
   String file_header = file_header_base;
+  
+  //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
-
-  delay(2000);
+  delay(2000);//1
   while (WiFi.status() != WL_CONNECTED) {
     delay(2000);
     Serial.println("Connecting to WiFi..");
@@ -142,13 +130,23 @@ void loop() {
     M5.Lcd.drawJpgFile(SD, "/404.jpg");
   }
 
+  //　AM2320環境センサプラットフォーム(4sec)
+  float temp, humid;
+  do {
+    delay(2000);
+    temp = am2320.readTemperature();
+    humid = am2320.readHumidity();
+  } while (humid < 1);
+  Serial.printf("Temp: %.2f, humid: %.2f\r\n", temp, humid);
+  ambient.set(1, temp);
+  ambient.set(2, humid);
+  ambient.send();
+  delay(2000);
+  
+  //鉄道運行情報配信プラットフォーム
   if ((WiFi.status() == WL_CONNECTED)) {
     Serial.println("データリンク開始");
-
     HTTPClient http;
-
-    
-
     http.begin(base_url + odpt_line_name + api_key); //URLを指定
     //http.begin(url); //URLを指定
     int httpCode = http.GET();  //GETリクエストを送信
@@ -225,6 +223,8 @@ void loop() {
 
     http.end(); //リソースを解放
   }
+
+  //スリープルーチン(2sec)
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   delay(2000);
   Serial.println("システム定期ルーチン終了");
