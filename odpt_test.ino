@@ -41,7 +41,6 @@ String header_ShonanShinjuku = "/03";
 //ここに適時追加
 
 //更新時間設定(秒)
-//const int sleeping_time = 20;
 const int sleeping_time = 290;
 
 void setup() {
@@ -117,12 +116,13 @@ void setup() {
 }
 
 void loop() {
+  //300秒ルーチン
   Serial.println("システム定期ルーチン開始");
   String file_header = file_header_base;
   
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
-  delay(2000);//1
+  delay(2000);
   while (WiFi.status() != WL_CONNECTED) {
     delay(2000);
     Serial.println("Connecting to WiFi..");
@@ -224,11 +224,11 @@ void loop() {
     http.end(); //リソースを解放
   }
 
-  //スリープルーチン(2sec)
+  //スリープルーチン(4sec)
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-  delay(2000);
   Serial.println("システム定期ルーチン終了");
   Serial.println("System in sleep!");
+  delay(4000);
   WiFi.mode(WIFI_OFF);
   esp_light_sleep_start();//上部で設定した秒数おきにLight_sleep解除、定期ルーチン開始
 }
