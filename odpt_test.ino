@@ -55,7 +55,7 @@ void setup() {
   }
 
   //初期路線設定(廃止予定)
-  const String line_name = "埼京線" ;
+  const String line_name = "山手線" ;
 
   //　路線設定論理(廃止予定)
   if (line_name == "埼京線") {
@@ -129,19 +129,6 @@ void loop() {
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/404.jpg");
   }
-
-  //　AM2320環境センサプラットフォーム(4sec)
-  float temp, humid;
-  do {
-    delay(2000);
-    temp = am2320.readTemperature();
-    humid = am2320.readHumidity();
-  } while (humid < 1);
-  Serial.printf("Temp: %.2f, humid: %.2f\r\n", temp, humid);
-  ambient.set(1, temp);
-  ambient.set(2, humid);
-  ambient.send();
-  delay(2000);
   
   //鉄道運行情報配信プラットフォーム
   if ((WiFi.status() == WL_CONNECTED)) {
@@ -220,15 +207,27 @@ void loop() {
       M5.Lcd.clear(BLACK);
       M5.Lcd.drawJpgFile(SD, "/404.jpg");
     }
-
     http.end(); //リソースを解放
   }
 
-  //スリープルーチン(4sec)
+  //　AM2320環境センサプラットフォーム(4sec)
+  float temp, humid;
+  do {
+    delay(2000);
+    temp = am2320.readTemperature();
+    humid = am2320.readHumidity();
+  } while (humid < 1);
+  Serial.printf("Temp: %.2f, humid: %.2f\r\n", temp, humid);
+  ambient.set(1, temp);
+  ambient.set(2, humid);
+  ambient.send();
+  delay(2000);
+
+  //スリープルーチン(3sec)
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   Serial.println("システム定期ルーチン終了");
   Serial.println("System in sleep!");
-  delay(4000);
+  delay(3000);
   WiFi.mode(WIFI_OFF);
   esp_light_sleep_start();//上部で設定した秒数おきにLight_sleep解除、定期ルーチン開始
 }
