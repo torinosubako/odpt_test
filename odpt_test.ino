@@ -3,12 +3,12 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <driver/rtc_io.h>
-#include <esp_deep_sleep.h>
 #include "Adafruit_Sensor.h"
 #include "Adafruit_AM2320.h"
 #include "ArduinoJson.h"
 WiFiClient client;
 Ambient ambient;
+
 
 //Wi-Fi設定用基盤情報
 const char *ssid = //Your Network SSID//;
@@ -21,27 +21,7 @@ Adafruit_AM2320 am2320 = Adafruit_AM2320();
 
 //東京公共交通オープンデータチャレンジ向け共通基盤情報
 const String api_key = "&acl:consumerKey="//Your API Key//;
-const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?";
-String file_header_base = "";
-String odpt_line_name = "";
-
-//東京公共交通オープンデータチャレンジ向路線別基盤情報
-//埼京・川越線(画像系統:00X系)
-const String odpt_line_saikyo = "odpt:railway=odpt.Railway:JR-East.SaikyoKawagoe";
-String header_saikyo = "/00";
-//京浜東北線(画像系統:01X系)
-const String odpt_line_KeihinTohoku = "odpt:railway=odpt.Railway:JR-East.KeihinTohokuNegishi";
-String header_KeihinTohoku = "/01";
-//山手線(画像系統:02X系)
-const String odpt_line_Yamanote = "odpt:railway=odpt.Railway:JR-East.Yamanote";
-String header_Yamanote = "/02";
-//湘南新宿ライン(画像系統:03X系)
-const String odpt_line_ShonanShinjuku = "odpt:railway=odpt.Railway:JR-East.ShonanShinjuku";
-String header_ShonanShinjuku = "/03";
-//ここに適時追加
-
-//更新時間設定(秒)
-const int sleeping_time = 290;
+const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?odpt:railway=odpt.Railway:";
 
 void setup() {
   M5.begin();
@@ -54,58 +34,22 @@ void setup() {
     delay(10); // hang out until serial port opens
   }
 
-  //初期路線設定(廃止予定)
-  const String line_name = "山手線" ;
-
-  //　路線設定論理(廃止予定)
-  if (line_name == "埼京線") {
-    //　埼京・川越線
-    odpt_line_name = odpt_line_saikyo;
-    file_header_base = header_saikyo;
-    Serial.println("路線設定:埼京線");
-  } else if (line_name == "京浜東北線") {
-    //　京浜東北線
-    odpt_line_name = odpt_line_KeihinTohoku;
-    file_header_base = header_KeihinTohoku;
-    Serial.println("路線設定:京浜東北線");
-  } else if (line_name == "山手線") {
-    //  山手線
-    odpt_line_name = odpt_line_Yamanote;
-    file_header_base = header_Yamanote;
-    Serial.println("路線設定:山手線");
-  } else {
-    odpt_line_name = odpt_line_saikyo;
-    file_header_base = header_saikyo;
-    Serial.println("路線設定:初期値(埼京線)に設定しました");
-  }
-
-  //スリープ設定
-  ledcDetachPin(GPIO_NUM_32);
-  rtc_gpio_set_level(GPIO_NUM_32, 1);
-  rtc_gpio_set_direction(GPIO_NUM_32, RTC_GPIO_MODE_OUTPUT_ONLY);
-  rtc_gpio_init(GPIO_NUM_32);
-  rtc_gpio_set_level(GPIO_NUM_33, 1);
-  rtc_gpio_set_direction(GPIO_NUM_33, RTC_GPIO_MODE_OUTPUT_ONLY);
-  rtc_gpio_init(GPIO_NUM_33);
-  M5.Power.setPowerBoostKeepOn(true);
-  esp_sleep_enable_timer_wakeup(sleeping_time * 1000000LL);
-
   //起動画面
   M5.Lcd.clear(BLACK);
-  M5.Lcd.drawJpgFile(SD, "/400.jpg");
+  M5.Lcd.drawJpgFile(SD, "/img/system/400.jpg");
   WiFi.begin(ssid, password);
   delay(1000);
   M5.Lcd.clear(BLACK);
-  M5.Lcd.drawJpgFile(SD, "/401.jpg");
+  M5.Lcd.drawJpgFile(SD, "/img/system/401.jpg");
   delay(1000);
-  
+
   //無線接続試験
   WiFi.begin(ssid, password);
-  while(WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
     M5.Lcd.clear(BLACK);
-    M5.Lcd.drawJpgFile(SD, "/404.jpg");
+    M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
   }
   Serial.println("初期リンクを確立しました");
   Serial.println(WiFi.localIP());
@@ -116,101 +60,41 @@ void setup() {
 }
 
 void loop() {
-  //300秒ルーチン
   Serial.println("システム定期ルーチン開始");
-  String file_header = file_header_base;
+  int wifi_cont;
   
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
   delay(2000);
   while (WiFi.status() != WL_CONNECTED) {
     delay(2000);
+    wifi_cont += 1;
     Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/404.jpg");
+    if (wifi_cont > 2) void reset();
   }
-  
+
   //鉄道運行情報配信プラットフォーム
-  if ((WiFi.status() == WL_CONNECTED)) {
-    Serial.println("データリンク開始");
-    HTTPClient http;
-    http.begin(base_url + odpt_line_name + api_key); //URLを指定
-    //http.begin(url); //URLを指定
-    int httpCode = http.GET();  //GETリクエストを送信
+  Serial.println("データリンク開始");
+  //OTIS系統
+  String JR_SaikyoKawagoe = odpt_train_info_jr("JR-East.SaikyoKawagoe");
+  String JR_Yamanote = odpt_train_info_jr("JR-East.Yamanote");
+  String TobuTojo = odpt_train_info_tobu("Tobu.Tojo");
+  //画像表示系等(最終コマだけ-10sec)
+  display_control(JR_SaikyoKawagoe, 60);
+  display_control(JR_Yamanote, 60);
+  display_control(TobuTojo, 50);
 
-    if (httpCode > 0) { //返答がある場合
-      Serial.println("データリンク成功");
-      String payload = http.getString();  //返答（JSON形式）を取得
-      Serial.println(base_url + odpt_line_name + api_key);
-      Serial.println(httpCode);
-      Serial.println(payload);
+  //AM2320環境センサプラットフォーム(3sec必須)
+  environmental_sensor();
+  Serial.println("システム定期ルーチン終了");
+}
 
-      //jsonオブジェクトの作成
-      String json = payload;
-      DynamicJsonDocument besedata(4096);
-      deserializeJson(besedata, json);
 
-      //各データを抜き出し
-      M5.Lcd.clear(BLACK);
-      M5.Lcd.setTextSize(2);
-      const char* deta1 = besedata[0]["odpt:trainInformationText"]["en"];
-      const char* deta2 = besedata[0]["odpt:trainInformationStatus"]["en"];
-      const char* deta3 = besedata[0];
-      const String point1 = String(deta1).c_str();
-      const String point2 = String(deta2).c_str();
-      Serial.println("データ受信結果");
-      Serial.println(deta1);
-      Serial.println(deta2);
-      Serial.println(deta3);
-
-      //Serial.println(deta);
-      if (point1 == "Service on schedule") {
-        //　平常運転
-        file_header.concat("1.jpg");
-        Serial.println(file_header);
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
-      } else if (point2 == "Notice") {
-        //　情報有り
-        file_header.concat("2.jpg");
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
-      } else if (point2 == "Delay") {
-        //　遅れあり
-        file_header.concat("3.jpg");
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
-      } else if (point2 == "Operation suspended") {
-        //　運転見合わせ
-        file_header.concat("4.jpg");
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
-      } else if (point2 == "Direct operation cancellation") {
-        //　直通運転中止
-        file_header.concat("5.jpg");
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, String(file_header).c_str());
-      } else if (point2 == NULL) {
-        //取得時間外？
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/402.jpg");
-        Serial.println("取得時間外?");
-      } else {
-        M5.Lcd.clear(BLACK);
-        M5.Lcd.drawJpgFile(SD, "/403.jpg");
-        Serial.println("読み込みエラー?");
-      }
-    }
-
-    else {
-      Serial.println("Error on HTTP request");
-      M5.Lcd.clear(BLACK);
-      M5.Lcd.drawJpgFile(SD, "/404.jpg");
-    }
-    http.end(); //リソースを解放
-  }
-
-  //　AM2320環境センサプラットフォーム(4sec)
+//関数群
+//AM2320環境センサプラットフォーム(3sec)
+void environmental_sensor() {
   float temp, humid;
   do {
     delay(2000);
@@ -221,13 +105,166 @@ void loop() {
   ambient.set(1, temp);
   ambient.set(2, humid);
   ambient.send();
-  delay(2000);
+  delay(1000);
+}
 
-  //スリープルーチン(3sec)
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-  Serial.println("システム定期ルーチン終了");
-  Serial.println("System in sleep!");
-  delay(3000);
-  WiFi.mode(WIFI_OFF);
-  esp_light_sleep_start();//上部で設定した秒数おきにLight_sleep解除、定期ルーチン開始
+//JR向け情報取得関数
+String odpt_train_info_jr(String line_name) {
+  String result; //返答用変数作成
+  String file_header = "";
+  String file_address = "";
+  
+  if (line_name == "JR-East.SaikyoKawagoe") {
+    file_header = "/img/JR_JA/";
+  } else if (line_name == "JR-East.KeihinTohokuNegishi") {
+    file_header = "/img/JR_JK/";
+  } else if (line_name == "JR-East.Yamanote") {
+    file_header = "/img/JR_JY/";
+  } else {
+    file_header = "/img/system/403.jpg";
+    return file_header;
+  }
+  //受信開始
+  HTTPClient http;
+  http.begin(base_url + line_name + api_key); //URLを指定
+  //http.begin(url); //URLを指定
+  int httpCode = http.GET();  //GETリクエストを送信
+
+  if (httpCode > 0) { //返答がある場合
+    Serial.println("データリンク成功");
+    String payload = http.getString();  //返答（JSON形式）を取得
+    Serial.println(base_url + line_name + api_key);
+    Serial.println(httpCode);
+    Serial.println(payload);
+
+    //jsonオブジェクトの作成
+    String json = payload;
+    DynamicJsonDocument besedata(4096);
+    deserializeJson(besedata, json);
+
+    //データ識別・判定
+    const char* deta1 = besedata[0]["odpt:trainInformationText"]["en"];
+    const char* deta2 = besedata[0]["odpt:trainInformationStatus"]["en"];
+    const char* deta3 = besedata[0];
+    const String point1 = String(deta1).c_str();
+    const String point2 = String(deta2).c_str();
+    Serial.println("データ受信結果");
+    Serial.println(deta1);
+    Serial.println(deta2);
+    Serial.println(deta3);
+
+    if (point1 == "Service on schedule") {
+      //　平常運転
+      file_address = file_header + "01.jpg";
+    } else if (point2 == "Notice") {
+      //　情報有り
+      file_address = file_header + "02.jpg";
+    } else if (point2 == "Delay") {
+      //　遅れあり
+      file_address = file_header + "03.jpg";
+    } else if (point2 == "Operation suspended") {
+      //　運転見合わせ
+      file_address = file_header + "04.jpg";
+    } else if (point2 == "Direct operation cancellation") {
+      //　直通運転中止
+      file_address = file_header + "05.jpg";
+    } else if (point2 == NULL) {
+      //取得時間外？
+      file_address = file_header + "00.jpg";
+    } else {
+      file_address = "/img/system/403.jpg";
+    }
+  }
+  else {
+    Serial.println("Error on HTTP request");
+    file_address = "/img/system/404.jpg";
+  }
+  result = file_address;
+  return result;
+  http.end(); //リソースを解放
+}
+
+//東武向け情報取得関数
+String odpt_train_info_tobu(String line_name) {
+  String result; //返答用変数作成
+  String file_header = "";
+  String file_address = "";
+  
+  if (line_name == "Tobu.Tojo") {
+    file_header = "/img/TB_TJ/";
+  } else if (line_name == "Tobu.Ogose") {
+    file_header = "/img/TB_OG/";
+  } else if (line_name == "Tobu.TobuUrbanPark") {
+    file_header = "/img/TB_UP/";
+  } else {
+    file_header = "/img/system/403.jpg";
+    return file_header;
+  }
+  //受信開始
+  HTTPClient http;
+  http.begin(base_url + line_name + api_key); //URLを指定
+  //http.begin(url); //URLを指定
+  int httpCode = http.GET();  //GETリクエストを送信
+
+  if (httpCode > 0) { //返答がある場合
+    Serial.println("データリンク成功");
+    String payload = http.getString();  //返答（JSON形式）を取得
+    Serial.println(base_url + line_name + api_key);
+    Serial.println(httpCode);
+    Serial.println(payload);
+
+    //jsonオブジェクトの作成
+    String json = payload;
+    DynamicJsonDocument besedata(4096);
+    deserializeJson(besedata, json);
+
+    //データ識別・判定
+    const char* deta1 = besedata[0]["odpt:trainInformationText"]["ja"];
+    const char* deta2 = besedata[0]["odpt:trainInformationStatus"]["ja"];
+    const char* deta3 = besedata[0];
+    const String point1 = String(deta1).c_str();
+    const String point2 = String(deta2).c_str();
+    Serial.println("データ受信結果");
+    Serial.println(deta1);
+    Serial.println(deta2);
+    Serial.println(deta3);
+
+    //判定論理野（開発中）
+    if (point1 == "平常どおり運転しています。") {
+      //　平常運転
+      file_address = file_header + "01.jpg";
+    } else if (point2 == "運行情報あり") {
+      //　情報有り
+      file_address = file_header + "02.jpg";
+    } else if (point2 == "Delay") {
+      //　遅れあり
+      file_address = file_header + "03.jpg";
+    } else if (point2 == "Operation suspended") {
+      //　運転見合わせ
+      file_address = file_header + "04.jpg";
+    } else if (point2 == "Direct operation cancellation") {
+      //　直通運転中止
+      file_address = file_header + "05.jpg";
+    } else if (point2 == NULL) {
+      //取得時間外？
+      file_address = file_header + "00.jpg";
+    } else {
+      file_address = "/img/system/403.jpg";
+    }
+  }
+  else {
+    Serial.println("Error on HTTP request");
+    file_address = "/img/system/404.jpg";
+  }
+  result = file_address;
+  return result;
+  http.end(); //リソースを解放
+}
+
+//画像表示制御系
+void display_control(String line_code, int interval_time) {
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.drawJpgFile(SD, String(line_code).c_str());
+  interval_time *= 1000;
+  delay(interval_time);
 }
