@@ -1,6 +1,6 @@
 /*
  * M5 Vision v2.10
- * CodeName:Sanlight
+ * CodeName:Sunlight
  * Build:2020/04/15
  * Author:torinosubako
  * Github:https://github.com/torinosubako/odpt_test
