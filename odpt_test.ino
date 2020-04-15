@@ -1,3 +1,11 @@
+/*
+ * M5 Vision v2.10
+ * CodeName:Sanlight
+ * Build:2020/04/15
+ * Author:torinosubako
+ * Github:https://github.com/torinosubako/odpt_test
+*/
+
 #include <M5Stack.h>
 #include <Ambient.h>
 #include <WiFi.h>
@@ -62,7 +70,7 @@ void setup() {
 void loop() {
   Serial.println("システム定期ルーチン開始");
   int wifi_cont;
-  
+
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
   delay(2000);
@@ -82,9 +90,12 @@ void loop() {
   String JR_Yamanote = odpt_train_info_jr("JR-East.Yamanote");
   String TobuTojo = odpt_train_info_tobu("Tobu.Tojo");
   //画像表示系等(最終コマだけ-10sec)
-  display_control(JR_SaikyoKawagoe, 60);
-  display_control(JR_Yamanote, 60);
-  display_control(TobuTojo, 50);
+  display_control(JR_SaikyoKawagoe, 30);
+  display_control(JR_Yamanote, 30);
+  display_control(TobuTojo, 30);
+  display_control(JR_SaikyoKawagoe, 30);
+  display_control(JR_Yamanote, 30);
+  display_control(TobuTojo, 20);
 
   //AM2320環境センサプラットフォーム(3sec必須)
   environmental_sensor();
@@ -113,7 +124,7 @@ String odpt_train_info_jr(String line_name) {
   String result; //返答用変数作成
   String file_header = "";
   String file_address = "";
-  
+
   if (line_name == "JR-East.SaikyoKawagoe") {
     file_header = "/img/JR_JA/";
   } else if (line_name == "JR-East.KeihinTohokuNegishi") {
@@ -189,7 +200,7 @@ String odpt_train_info_tobu(String line_name) {
   String result; //返答用変数作成
   String file_header = "";
   String file_address = "";
-  
+
   if (line_name == "Tobu.Tojo") {
     file_header = "/img/TB_TJ/";
   } else if (line_name == "Tobu.Ogose") {
@@ -234,17 +245,19 @@ String odpt_train_info_tobu(String line_name) {
       //　平常運転
       file_address = file_header + "01.jpg";
     } else if (point2 == "運行情報あり") {
-      //　情報有り
-      file_address = file_header + "02.jpg";
-    } else if (point2 == "Delay") {
-      //　遅れあり
-      file_address = file_header + "03.jpg";
-    } else if (point2 == "Operation suspended") {
-      //　運転見合わせ
-      file_address = file_header + "04.jpg";
-    } else if (point2 == "Direct operation cancellation") {
-      //　直通運転中止
-      file_address = file_header + "05.jpg";
+      if (-1 != point1.indexOf("運転を見合わせています")) {
+        //　運転見合わせ
+        file_address = file_header + "04.jpg";
+      } if (-1 != point1.indexOf("遅れがでています")) {
+        // 遅れあり
+        file_address = file_header + "03.jpg";
+      } else if (-1 != point1.indexOf("直通運転を中止しています")) {
+        //　直通運転中止
+        file_address = file_header + "05.jpg";
+      } else {
+        //　情報有り
+        file_address = file_header + "02.jpg";
+      }
     } else if (point2 == NULL) {
       //取得時間外？
       file_address = file_header + "00.jpg";
