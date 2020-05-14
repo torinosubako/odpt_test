@@ -1,7 +1,7 @@
 /*
- * M5 Vision v2.10
- * CodeName:Sunlight
- * Build:2020/04/15
+ * M5 Vision v2.11
+ * CodeName:Sunlight_Refresh
+ * Build:2020/05/14
  * Author:torinosubako
  * Github:https://github.com/torinosubako/odpt_test
 */
@@ -207,10 +207,35 @@ String odpt_train_info_tobu(String line_name) {
     file_header = "/img/TB_OG/";
   } else if (line_name == "Tobu.TobuUrbanPark") {
     file_header = "/img/TB_UP/";
+  } else if (line_name == "Tobu.TobuSkytree") {
+    file_header = "/img/TB_TS/";
+  } else if (line_name == "TobuSkytreeBranch") { //東武スカイツリーライン(押上-曳舟)
+    file_header = "/img/TB_TSB/";
+  } else if (line_name == "Tobu.Kameido") {
+    file_header = "/img/TB_TSK/";
+  } else if (line_name == "Tobu.Daishi") {
+    file_header = "/img/TB_TSD/";    
+  } else if (line_name == "Tobu.Nikko") {
+    file_header = "/img/TB_TN/";
+  } else if (line_name == "Tobu.Kinugawa") {
+    file_header = "/img/TB_TNK/";
+  } else if (line_name == "Tobu.Utsunomiya") {
+    file_header = "/img/TB_TNU/";
+  } else if (line_name == "Tobu.Isesaki") {
+    file_header = "/img/TB_TI/";
+  } else if (line_name == "Tobu.Sano") {
+    file_header = "/img/TB_TIS/";
+  } else if (line_name == "Tobu.Kiryu") {
+    file_header = "/img/TB_TII/";
+  } else if (line_name == "Tobu.Koizumi") {
+    file_header = "/img/TB_TIO/";
+  } else if (line_name == "Tobu.KoizumiBranch") { //東武小泉線(東小泉-太田)
+    file_header = "/img/TB_TIO/";
   } else {
     file_header = "/img/system/403.jpg";
     return file_header;
   }
+  
   //受信開始
   HTTPClient http;
   http.begin(base_url + line_name + api_key); //URLを指定
