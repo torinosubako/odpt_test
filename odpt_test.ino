@@ -1,7 +1,7 @@
 /*
- * M5 Vision v2.11
- * CodeName:Sunlight_Refresh
- * Build:2020/05/14
+ * M5 Vision v2.12
+ * CodeName:Sunlight_Refresh＋
+ * Build:2020/06/10
  * Author:torinosubako
  * Github:https://github.com/torinosubako/odpt_test
 */
@@ -31,6 +31,10 @@ Adafruit_AM2320 am2320 = Adafruit_AM2320();
 const String api_key = "&acl:consumerKey="//Your API Key//;
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?odpt:railway=odpt.Railway:";
 
+//M5Stackリフレッシュ用変数
+int reno_cont;
+int reno_limit = 20;
+
 void setup() {
   M5.begin();
   M5.Lcd.clear();
@@ -38,6 +42,7 @@ void setup() {
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextColor(WHITE);
   Serial.begin(9600);
+  int wifi_cont;
   while (!Serial) {
     delay(10); // hang out until serial port opens
   }
@@ -45,19 +50,20 @@ void setup() {
   //起動画面
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/img/system/400.jpg");
-  WiFi.begin(ssid, password);
-  delay(1000);
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/img/system/401.jpg");
-  delay(1000);
+  delay(500);
 
-  //無線接続試験
+  //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
+  delay(2000);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(2000);
+    wifi_cont ++;
+    Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
+    if (wifi_cont > 2) M5.Power.reset();
   }
   Serial.println("初期リンクを確立しました");
   Serial.println(WiFi.localIP());
@@ -68,20 +74,29 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("システム定期ルーチン開始");
   int wifi_cont;
+
+  //自動リセット
+  if (reno_cont >= reno_limit) M5.Power.reset();
+  reno_cont ++;
+  Serial.println(reno_cont);
+  
+
 
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
   delay(2000);
   while (WiFi.status() != WL_CONNECTED) {
     delay(2000);
-    wifi_cont += 1;
+    wifi_cont ++;
     Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
-    M5.Lcd.drawJpgFile(SD, "/404.jpg");
-    if (wifi_cont > 2) void reset();
+    M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
+    if (wifi_cont > 2) M5.Power.reset();
   }
+  
+  //AM2320環境センサプラットフォーム(3sec必須)
+  environmental_sensor();
 
   //鉄道運行情報配信プラットフォーム
   Serial.println("データリンク開始");
@@ -90,15 +105,13 @@ void loop() {
   String JR_Yamanote = odpt_train_info_jr("JR-East.Yamanote");
   String TobuTojo = odpt_train_info_tobu("Tobu.Tojo");
   //画像表示系等(最終コマだけ-10sec)
+  display_control(TobuTojo, 30);
   display_control(JR_SaikyoKawagoe, 30);
   display_control(JR_Yamanote, 30);
   display_control(TobuTojo, 30);
   display_control(JR_SaikyoKawagoe, 30);
-  display_control(JR_Yamanote, 30);
-  display_control(TobuTojo, 20);
+  display_control(JR_Yamanote, 20);
 
-  //AM2320環境センサプラットフォーム(3sec必須)
-  environmental_sensor();
   Serial.println("システム定期ルーチン終了");
 }
 
@@ -119,7 +132,7 @@ void environmental_sensor() {
   delay(1000);
 }
 
-//JR向け情報取得関数
+//JR向け情報取得関数(vr.200610)
 String odpt_train_info_jr(String line_name) {
   String result; //返答用変数作成
   String file_header = "";
@@ -138,15 +151,12 @@ String odpt_train_info_jr(String line_name) {
   //受信開始
   HTTPClient http;
   http.begin(base_url + line_name + api_key); //URLを指定
-  //http.begin(url); //URLを指定
   int httpCode = http.GET();  //GETリクエストを送信
 
   if (httpCode > 0) { //返答がある場合
-    Serial.println("データリンク成功");
     String payload = http.getString();  //返答（JSON形式）を取得
-    Serial.println(base_url + line_name + api_key);
-    Serial.println(httpCode);
-    Serial.println(payload);
+    //Serial.println(base_url + line_name + api_key);
+    //Serial.println(payload);
 
     //jsonオブジェクトの作成
     String json = payload;
@@ -157,12 +167,10 @@ String odpt_train_info_jr(String line_name) {
     const char* deta1 = besedata[0]["odpt:trainInformationText"]["en"];
     const char* deta2 = besedata[0]["odpt:trainInformationStatus"]["en"];
     const char* deta3 = besedata[0];
+    const char* deta4 = besedata[0]["odpt:trainInformationStatus"]["ja"];
     const String point1 = String(deta1).c_str();
     const String point2 = String(deta2).c_str();
-    Serial.println("データ受信結果");
-    Serial.println(deta1);
-    Serial.println(deta2);
-    Serial.println(deta3);
+    const String point4 = String(deta4).c_str();
 
     if (point1 == "Service on schedule") {
       //　平常運転
@@ -175,6 +183,8 @@ String odpt_train_info_jr(String line_name) {
       file_address = file_header + "03.jpg";
     } else if (point2 == "Operation suspended") {
       //　運転見合わせ
+      file_address = file_header + "04.jpg";
+    } else if (point4 == "運転見合わせ") {
       file_address = file_header + "04.jpg";
     } else if (point2 == "Direct operation cancellation") {
       //　直通運転中止
@@ -235,7 +245,6 @@ String odpt_train_info_tobu(String line_name) {
     file_header = "/img/system/403.jpg";
     return file_header;
   }
-  
   //受信開始
   HTTPClient http;
   http.begin(base_url + line_name + api_key); //URLを指定
@@ -243,11 +252,10 @@ String odpt_train_info_tobu(String line_name) {
   int httpCode = http.GET();  //GETリクエストを送信
 
   if (httpCode > 0) { //返答がある場合
-    Serial.println("データリンク成功");
     String payload = http.getString();  //返答（JSON形式）を取得
-    Serial.println(base_url + line_name + api_key);
-    Serial.println(httpCode);
-    Serial.println(payload);
+    //Serial.println(base_url + line_name + api_key);
+    //Serial.println(httpCode);
+    //Serial.println(payload);
 
     //jsonオブジェクトの作成
     String json = payload;
@@ -260,10 +268,10 @@ String odpt_train_info_tobu(String line_name) {
     const char* deta3 = besedata[0];
     const String point1 = String(deta1).c_str();
     const String point2 = String(deta2).c_str();
-    Serial.println("データ受信結果");
-    Serial.println(deta1);
-    Serial.println(deta2);
-    Serial.println(deta3);
+    //Serial.println("データ受信結果");
+    //Serial.println(deta1);
+    //Serial.println(deta2);
+    //Serial.println(deta3);
 
     //判定論理野（開発中）
     if (point1 == "平常どおり運転しています。") {
@@ -298,6 +306,8 @@ String odpt_train_info_tobu(String line_name) {
   return result;
   http.end(); //リソースを解放
 }
+
+
 
 //画像表示制御系
 void display_control(String line_code, int interval_time) {
