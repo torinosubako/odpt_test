@@ -1,7 +1,7 @@
 /*
- * M5 Vision v2.12
- * CodeName:Sunlight_Refresh＋
- * Build:2020/06/10
+ * M5 Vision v2.13
+ * CodeName:Sunlight_Refresh+1
+ * Build:2020/06/11
  * Author:torinosubako
  * Github:https://github.com/torinosubako/odpt_test
 */
@@ -18,7 +18,7 @@ WiFiClient client;
 Ambient ambient;
 
 
-//Wi-Fi設定用基盤情報
+//Wi-Fi設定用基盤情報(2.4GHz帯域のみ)
 const char *ssid = //Your Network SSID//;
 const char *password = //Your Network Password//;
 
@@ -30,6 +30,7 @@ Adafruit_AM2320 am2320 = Adafruit_AM2320();
 //東京公共交通オープンデータチャレンジ向け共通基盤情報
 const String api_key = "&acl:consumerKey="//Your API Key//;
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?odpt:railway=odpt.Railway:";
+
 
 //M5Stackリフレッシュ用変数
 int reno_cont;
@@ -52,7 +53,6 @@ void setup() {
   M5.Lcd.drawJpgFile(SD, "/img/system/400.jpg");
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/img/system/401.jpg");
-  delay(500);
 
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
@@ -63,7 +63,7 @@ void setup() {
     Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
-    if (wifi_cont > 2) M5.Power.reset();
+    if (wifi_cont >= 3) M5.Power.reset();
   }
   Serial.println("初期リンクを確立しました");
   Serial.println(WiFi.localIP());
@@ -82,7 +82,6 @@ void loop() {
   Serial.println(reno_cont);
   
 
-
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
   delay(2000);
@@ -92,7 +91,7 @@ void loop() {
     Serial.println("Connecting to WiFi..");
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
-    if (wifi_cont > 2) M5.Power.reset();
+    if (wifi_cont > 3) M5.Power.reset();
   }
   
   //AM2320環境センサプラットフォーム(3sec必須)
@@ -100,10 +99,11 @@ void loop() {
 
   //鉄道運行情報配信プラットフォーム
   Serial.println("データリンク開始");
-  //OTIS系統
+  //OTIS(データ取得・整形)系統
   String JR_SaikyoKawagoe = odpt_train_info_jr("JR-East.SaikyoKawagoe");
   String JR_Yamanote = odpt_train_info_jr("JR-East.Yamanote");
   String TobuTojo = odpt_train_info_tobu("Tobu.Tojo");
+  
   //画像表示系等(最終コマだけ-10sec)
   display_control(TobuTojo, 30);
   display_control(JR_SaikyoKawagoe, 30);
@@ -132,18 +132,40 @@ void environmental_sensor() {
   delay(1000);
 }
 
-//JR向け情報取得関数(vr.200610)
+//JR向け情報取得関数(vr.200611)
 String odpt_train_info_jr(String line_name) {
   String result; //返答用変数作成
   String file_header = "";
   String file_address = "";
-
+  
   if (line_name == "JR-East.SaikyoKawagoe") {
     file_header = "/img/JR_JA/";
   } else if (line_name == "JR-East.KeihinTohokuNegishi") {
     file_header = "/img/JR_JK/";
   } else if (line_name == "JR-East.Yamanote") {
     file_header = "/img/JR_JY/";
+  } else if (line_name == "JR-East.ChuoRapid ") { //画像未実装
+    file_header = "/img/JR_JC/";
+  } else if (line_name == "JR-East.ChuoSobuLocal ") { //画像未実装
+    file_header = "/img/JR_JB/";
+  } else if (line_name == "JR-East.JobanRapid ") { //画像未実装
+    file_header = "/img/JR_JJ/";
+  } else if (line_name == "JR-East.JobanLocal ") { //画像未実装
+    file_header = "/img/JR_JL/";
+  } else if (line_name == "JR-East.Keiyo ") { //画像未実装
+    file_header = "/img/JR_JE/";
+  } else if (line_name == "JR-East.Musashino ") { //画像未実装
+    file_header = "/img/JR_JM/";
+  } else if (line_name == "JR-East.SobuRapid ") { //画像未実装
+    file_header = "/img/JR_JOS/";
+  } else if (line_name == "JR-East.Yokosuka  ") { //画像未実装
+    file_header = "/img/JR_JOY/";
+  } else if (line_name == "JR-East.Tokaido ") { //画像未実装
+    file_header = "/img/JR_JT/";
+  } else if (line_name == "JR-East.Utsunomiya ") { //画像未実装
+    file_header = "/img/JR_JU/";
+  } else if (line_name == "JR-East.Takasaki ") { //画像未実装
+    file_header = "/img/JR_JUT/";
   } else {
     file_header = "/img/system/403.jpg";
     return file_header;
@@ -155,7 +177,7 @@ String odpt_train_info_jr(String line_name) {
 
   if (httpCode > 0) { //返答がある場合
     String payload = http.getString();  //返答（JSON形式）を取得
-    //Serial.println(base_url + line_name + api_key);
+    Serial.println(base_url + line_name + api_key);
     //Serial.println(payload);
 
     //jsonオブジェクトの作成
@@ -306,8 +328,6 @@ String odpt_train_info_tobu(String line_name) {
   return result;
   http.end(); //リソースを解放
 }
-
-
 
 //画像表示制御系
 void display_control(String line_code, int interval_time) {
