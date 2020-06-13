@@ -1,7 +1,7 @@
 /*
- * M5 Vision v2.13
- * CodeName:Sunlight_Refresh+1
- * Build:2020/06/11
+ * M5 Vision v2.14
+ * CodeName:Sunlight_Refresh+2
+ * Build:2020/06/13
  * Author:torinosubako
  * Github:https://github.com/torinosubako/odpt_test
 */
@@ -43,7 +43,7 @@ void setup() {
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextColor(WHITE);
   Serial.begin(9600);
-  int wifi_cont;
+  int wifi_cont = 0;
   while (!Serial) {
     delay(10); // hang out until serial port opens
   }
@@ -61,9 +61,12 @@ void setup() {
     delay(2000);
     wifi_cont ++;
     Serial.println("Connecting to WiFi..");
+    Serial.println( wifi_cont);
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
-    if (wifi_cont >= 3) M5.Power.reset();
+    if (wifi_cont >= 3){
+      M5.Power.reset();
+    }
   }
   Serial.println("初期リンクを確立しました");
   Serial.println(WiFi.localIP());
@@ -74,10 +77,12 @@ void setup() {
 }
 
 void loop() {
-  int wifi_cont;
+  int wifi_cont = 0;
 
   //自動リセット
-  if (reno_cont >= reno_limit) M5.Power.reset();
+  if (reno_cont >= reno_limit){
+    M5.Power.reset();
+  }
   reno_cont ++;
   Serial.println(reno_cont);
   
@@ -85,13 +90,17 @@ void loop() {
   //Wi-Fi接続試験(2sec)
   WiFi.begin(ssid, password);
   delay(2000);
+  Serial.println(wifi_cont);
   while (WiFi.status() != WL_CONNECTED) {
     delay(2000);
     wifi_cont ++;
     Serial.println("Connecting to WiFi..");
+    Serial.println(wifi_cont);
     M5.Lcd.clear(BLACK);
     M5.Lcd.drawJpgFile(SD, "/img/system/404.jpg");
-    if (wifi_cont > 3) M5.Power.reset();
+    if (wifi_cont >= 5){
+      M5.Power.reset();
+    }
   }
   
   //AM2320環境センサプラットフォーム(3sec必須)
@@ -103,6 +112,9 @@ void loop() {
   String JR_SaikyoKawagoe = odpt_train_info_jr("JR-East.SaikyoKawagoe");
   String JR_Yamanote = odpt_train_info_jr("JR-East.Yamanote");
   String TobuTojo = odpt_train_info_tobu("Tobu.Tojo");
+
+  //WiFi切断  
+  WiFi.disconnect();
   
   //画像表示系等(最終コマだけ-10sec)
   display_control(TobuTojo, 30);
@@ -177,7 +189,7 @@ String odpt_train_info_jr(String line_name) {
 
   if (httpCode > 0) { //返答がある場合
     String payload = http.getString();  //返答（JSON形式）を取得
-    Serial.println(base_url + line_name + api_key);
+    //Serial.println(base_url + line_name + api_key);
     //Serial.println(payload);
 
     //jsonオブジェクトの作成
@@ -270,7 +282,7 @@ String odpt_train_info_tobu(String line_name) {
   //受信開始
   HTTPClient http;
   http.begin(base_url + line_name + api_key); //URLを指定
-  //http.begin(url); //URLを指定
+//  http.begin(url); //URLを指定
   int httpCode = http.GET();  //GETリクエストを送信
 
   if (httpCode > 0) { //返答がある場合
