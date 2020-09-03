@@ -1,7 +1,7 @@
 /*
- * M5 Vision v2.14
- * CodeName:Sunlight_Refresh+2
- * Build:2020/06/13
+ * M5 Vision v2.15
+ * CodeName:Sunlight_Refresh+3
+ * Build:2020/09/03
  * Author:torinosubako
  * Github:https://github.com/torinosubako/odpt_test
 */
@@ -31,7 +31,6 @@ Adafruit_AM2320 am2320 = Adafruit_AM2320();
 const String api_key = "&acl:consumerKey="//Your API Key//;
 const String base_url = "https://api-tokyochallenge.odpt.org/api/v4/odpt:TrainInformation?odpt:railway=odpt.Railway:";
 
-
 //M5Stackリフレッシュ用変数
 int reno_cont;
 int reno_limit = 20;
@@ -54,11 +53,11 @@ void setup() {
   M5.Lcd.clear(BLACK);
   M5.Lcd.drawJpgFile(SD, "/img/system/401.jpg");
 
-  //Wi-Fi接続試験(2sec)
+  //Wi-Fi接続試験(2.5sec)
   WiFi.begin(ssid, password);
-  delay(2000);
+  delay(2500);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(2000);
+    delay(2500);
     wifi_cont ++;
     Serial.println("Connecting to WiFi..");
     Serial.println( wifi_cont);
@@ -87,12 +86,12 @@ void loop() {
   Serial.println(reno_cont);
   
 
-  //Wi-Fi接続試験(2sec)
+  //Wi-Fi接続試験(2.5sec)
   WiFi.begin(ssid, password);
-  delay(2000);
+  delay(2500);
   Serial.println(wifi_cont);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(2000);
+    delay(2500);
     wifi_cont ++;
     Serial.println("Connecting to WiFi..");
     Serial.println(wifi_cont);
@@ -340,6 +339,136 @@ String odpt_train_info_tobu(String line_name) {
   return result;
   http.end(); //リソースを解放
 }
+
+//東京メトロ向け情報取得関数
+//Teito Rapid Transit Authorityの略のTRTAで呼び出し
+String odpt_train_info_trta(String line_name) {
+  String result; //返答用変数作成
+  String file_header = "";
+  String file_address = "";
+  
+  if (line_name == "TokyoMetro.Hibiya") {
+    file_header = "/img/TM_H/";
+  } else if (line_name == "TokyoMetro.Ginza") {
+    file_header = "/img/TM_G/";
+  } else if (line_name == "TokyoMetro.Marunouchi") {
+    file_header = "/img/TM_M/";
+  } else if (line_name == "TokyoMetro.Tozai") {
+    file_header = "/img/TM_T/";
+  } else if (line_name == "TokyoMetro.Namboku") {
+    file_header = "/img/TM_N/";
+  } else if (line_name == "TokyoMetro.Yurakucho") {
+    file_header = "/img/TM_Y/";
+  } else if (line_name == "TokyoMetro.Chiyoda") {
+    file_header = "/img/TM_C/";
+  } else if (line_name == "TokyoMetro.Hanzomon") {
+    file_header = "/img/TM_Z/";
+  } else if (line_name == "TokyoMetro.Fukutoshin") {
+    file_header = "/img/TM_F/";
+  } else {
+    file_header = "/img/system/403.jpg";
+    return file_header;
+  }
+  
+  
+  //受信開始
+  HTTPClient http;
+  http.begin(base_url + line_name + api_key); //URLを指定
+//  http.begin(url); //URLを指定
+  int httpCode = http.GET();  //GETリクエストを送信
+
+  if (httpCode > 0) { //返答がある場合
+    String payload = http.getString();  //返答（JSON形式）を取得
+    //Serial.println(base_url + line_name + api_key);
+    //Serial.println(httpCode);
+    //Serial.println(payload);
+
+    //jsonオブジェクトの作成
+    String json = payload;
+    DynamicJsonDocument besedata(4096);
+    deserializeJson(besedata, json);
+
+    //データ識別・判定(開発中)
+    const char* deta1 = besedata[0]["odpt:trainInformationText"]["ja"];
+    const char* deta2 = besedata[0]["odpt:trainInformationStatus"]["ja"];
+    const char* deta3 = besedata[0];
+    const String point1 = String(deta1).c_str();
+    const String point2 = String(deta2).c_str();
+    //Serial.println("データ受信結果");
+    //Serial.println(deta1);
+    //Serial.println(deta2);
+    //Serial.println(deta3);
+
+    //判定論理野（開発中）
+    if (point1 == "平常どおり運転しています。") {
+      //　平常運転
+      file_address = file_header + "01.jpg";
+    } else if (point2 == "運行情報あり") {
+      if (-1 != point1.indexOf("運転を見合わせています")) {
+        //　運転見合わせ
+        file_address = file_header + "04.jpg";
+      } if (-1 != point1.indexOf("遅れがでています")) {
+        // 遅れあり
+        file_address = file_header + "03.jpg";
+      } else if (-1 != point1.indexOf("直通運転を中止しています")) {
+        //　直通運転中止
+        file_address = file_header + "05.jpg";
+      } else {
+        //　情報有り
+        file_address = file_header + "02.jpg";
+      }
+    } else if (point2 == NULL) {
+      //取得時間外？
+      file_address = file_header + "00.jpg";
+    } else {
+      file_address = "/img/system/403.jpg";
+    }
+  }
+  else {
+    Serial.println("Error on HTTP request");
+    file_address = "/img/system/404.jpg";
+  }
+  result = file_address;
+  return result;
+  http.end(); //リソースを解放
+}
+
+//東京都交通局(都営地下鉄)向け情報取得関数
+//String odpt_train_info_toei(String line_name) {}
+//-準備中-
+
+//東京都交通局(都電)向け情報取得関数
+//String odpt_train_info_toden(String line_name) {}
+//-準備中-
+
+//東急電鉄(旧:東京急行電鉄)向け情報取得関数
+//String odpt_train_info_tokyu(String line_name) {}
+//-準備中-
+
+//小田急電鉄向け情報取得関数
+//Odakyu Electric Railwayの略のOERで呼び出し
+//String odpt_train_info_oer(String line_name) {}
+//-準備中-
+
+//京王電鉄向け情報取得関数
+//String odpt_train_info_keio(String line_name) {}
+//-準備中-
+
+//京急(京浜急行電鉄)向け情報取得関数
+//呼び出しにはKHKを用いる。
+//String odpt_train_info_khk(String line_name) {}
+//-準備中-
+
+//西武鉄道向け情報取得関数
+//String odpt_train_info_seibu(String line_name) {}
+//-準備中-
+
+//京成電鉄向け情報取得関数
+//Keisei Electric Railwayの略のKERで呼び出し
+//String odpt_train_info_ker(String line_name) {}
+//-準備中-
+
+
 
 //画像表示制御系
 void display_control(String line_code, int interval_time) {
